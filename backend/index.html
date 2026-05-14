@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MangaRock — Backend Tester</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1A1A2E;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #16213E;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid #0F3460;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      color: #E94560;
+      flex-shrink: 0;
+    }
+
+    #search-input {
+      flex: 1;
+      background: #1A1A2E;
+      border: 1px solid #0F3460;
+      border-radius: 8px;
+      color: #e0e0e0;
+      padding: 8px 14px;
+      font-size: 0.95rem;
+      outline: none;
+      max-width: 400px;
+    }
+    #search-input:focus { border-color: #E94560; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 12px 24px;
+      background: #16213E;
+      border-bottom: 1px solid #0F3460;
+    }
+
+    .tab {
+      padding: 6px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      border: 1px solid #0F3460;
+      background: transparent;
+      color: #9E9E9E;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      background: #E94560;
+      border-color: #E94560;
+      color: white;
+    }
+
+    main { padding: 20px 24px; }
+
+    .status-bar {
+      font-size: 0.8rem;
+      color: #9E9E9E;
+      margin-bottom: 12px;
+      min-height: 20px;
+    }
+    .status-bar.error { color: #E94560; }
+    .status-bar.ok { color: #4caf50; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      background: #16213E;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.15s;
+      border: 1px solid #0F3460;
+    }
+    .card:hover { transform: translateY(-3px); border-color: #E94560; }
+
+    .card img {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      background: #0F3460;
+      display: block;
+    }
+
+    .card-title {
+      padding: 8px;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      color: #e0e0e0;
+    }
+
+    .load-more {
+      margin: 24px auto 0;
+      display: block;
+      padding: 10px 32px;
+      background: #E94560;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .load-more:disabled { opacity: 0.4; cursor: default; }
+
+    /* Detail panel */
+    #detail-panel {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      overflow-y: auto;
+    }
+    #detail-panel.open { display: block; }
+
+    .detail-inner {
+      background: #16213E;
+      max-width: 700px;
+      margin: 40px auto;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .detail-hero {
+      display: flex;
+      gap: 16px;
+      padding: 20px;
+      background: #0F3460;
+    }
+
+    .detail-hero img {
+      width: 110px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+    }
+
+    .detail-meta { flex: 1; }
+    .detail-meta h2 { font-size: 1.1rem; margin-bottom: 6px; }
+    .detail-meta .author { color: #9E9E9E; font-size: 0.85rem; margin-bottom: 4px; }
+    .detail-meta .status {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      background: #E94560;
+      color: white;
+      margin-bottom: 8px;
+    }
+    .detail-meta .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .detail-meta .tag {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.72rem;
+      background: #1A1A2E;
+      color: #9E9E9E;
+      border: 1px solid #0F3460;
+    }
+
+    .detail-desc {
+      padding: 16px 20px;
+      font-size: 0.85rem;
+      color: #9E9E9E;
+      line-height: 1.5;
+      border-bottom: 1px solid #0F3460;
+    }
+
+    .chapters-header {
+      padding: 12px 20px;
+      font-size: 0.9rem;
+      color: #9E9E9E;
+      border-bottom: 1px solid #0F3460;
+    }
+
+    .chapter-list { max-height: 320px; overflow-y: auto; }
+    .chapter-item {
+      padding: 10px 20px;
+      border-bottom: 1px solid #0F3460;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .chapter-item:hover { background: #1A1A2E; }
+    .chapter-item .ch-num { font-size: 0.88rem; }
+    .chapter-item .ch-date { font-size: 0.75rem; color: #9E9E9E; }
+
+    .detail-close {
+      position: absolute;
+      top: 48px;
+      right: calc(50% - 350px + 12px);
+      background: #E94560;
+      border: none;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 1.1rem;
+      cursor: pointer;
+      line-height: 32px;
+      text-align: center;
+    }
+
+    .spinner {
+      display: flex;
+      justify-content: center;
+      padding: 40px;
+      color: #9E9E9E;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>MangaRock</h1>
+  <input id="search-input" type="text" placeholder="Search manga..." autocomplete="off">
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="popular">Popular</button>
+  <button class="tab" data-tab="newest">New</button>
+  <button class="tab" data-tab="completed">Completed</button>
+</div>
+
+<main>
+  <div class="status-bar" id="status"></div>
+  <div class="grid" id="grid"></div>
+  <button class="load-more" id="load-more" style="display:none">Load More</button>
+</main>
+
+<div id="detail-panel">
+  <button class="detail-close" onclick="closeDetail()">✕</button>
+  <div class="detail-inner" id="detail-inner"></div>
+</div>
+
+<script>
+  const API = ''  // same-origin — served by node server.js
+
+  let currentTab = 'popular'
+  let currentPage = 1
+  let hasNext = false
+  let loading = false
+  let searchTimer = null
+
+  const grid = document.getElementById('grid')
+  const status = document.getElementById('status')
+  const loadMoreBtn = document.getElementById('load-more')
+
+  // ── Status helpers ───────────────────────────────────────────────────────────
+
+  function setStatus(msg, cls = '') {
+    status.textContent = msg
+    status.className = 'status-bar ' + cls
+  }
+
+  // ── Fetch helpers ────────────────────────────────────────────────────────────
+
+  async function fetchJson(path) {
+    const res = await fetch(API + path)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json()
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  function renderCards(items, append = false) {
+    if (!append) grid.innerHTML = ''
+    items.forEach(m => {
+      const card = document.createElement('div')
+      card.className = 'card'
+      card.innerHTML = `
+        <img src="${m.coverUrl}" alt="" loading="lazy" onerror="this.src=''">
+        <div class="card-title">${m.title}</div>
+      `
+      card.addEventListener('click', () => openDetail(m.id))
+      grid.appendChild(card)
+    })
+  }
+
+  // ── Load list ────────────────────────────────────────────────────────────────
+
+  async function loadTab(tab, page = 1, append = false) {
+    if (loading) return
+    loading = true
+    if (!append) setStatus('Loading…')
+
+    try {
+      const data = await fetchJson(`/manga/${tab}?page=${page}`)
+      renderCards(data.manga, append)
+      hasNext = data.hasNextPage
+      loadMoreBtn.style.display = hasNext ? 'block' : 'none'
+      setStatus(`${data.manga.length + (append ? parseInt(status.textContent) || 0 : 0)} manga`, 'ok')
+      if (data.manga.length === 0 && !append) setStatus('No results.')
+    } catch (e) {
+      setStatus('Failed to reach backend: ' + e.message, 'error')
+    } finally {
+      loading = false
+    }
+  }
+
+  async function loadSearch(query, page = 1, append = false) {
+    if (loading) return
+    loading = true
+    if (!append) setStatus('Searching…')
+
+    try {
+      const data = await fetchJson(`/manga/search?q=${encodeURIComponent(query)}&page=${page}`)
+      renderCards(data.manga, append)
+      hasNext = data.hasNextPage
+      loadMoreBtn.style.display = hasNext ? 'block' : 'none'
+      setStatus(`${data.manga.length} results for "${query}"`, 'ok')
+      if (data.manga.length === 0) setStatus(`No results for "${query}".`)
+    } catch (e) {
+      setStatus('Search failed: ' + e.message, 'error')
+    } finally {
+      loading = false
+    }
+  }
+
+  // ── Tabs ─────────────────────────────────────────────────────────────────────
+
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      currentTab = btn.dataset.tab
+      currentPage = 1
+      document.getElementById('search-input').value = ''
+      loadTab(currentTab, 1)
+    })
+  })
+
+  // ── Search ───────────────────────────────────────────────────────────────────
+
+  document.getElementById('search-input').addEventListener('input', e => {
+    clearTimeout(searchTimer)
+    const q = e.target.value.trim()
+    if (!q) {
+      currentPage = 1
+      loadTab(currentTab, 1)
+      return
+    }
+    searchTimer = setTimeout(() => {
+      currentPage = 1
+      loadSearch(q, 1)
+    }, 500)
+  })
+
+  // ── Load more ────────────────────────────────────────────────────────────────
+
+  loadMoreBtn.addEventListener('click', () => {
+    currentPage++
+    const q = document.getElementById('search-input').value.trim()
+    if (q) loadSearch(q, currentPage, true)
+    else loadTab(currentTab, currentPage, true)
+  })
+
+  // ── Detail ───────────────────────────────────────────────────────────────────
+
+  async function openDetail(mangaId) {
+    const panel = document.getElementById('detail-panel')
+    const inner = document.getElementById('detail-inner')
+    inner.innerHTML = '<div class="spinner">Loading…</div>'
+    panel.classList.add('open')
+
+    try {
+      const [detail, chaptersData] = await Promise.all([
+        fetchJson(`/manga/${mangaId}`),
+        fetchJson(`/manga/${mangaId}/chapters`)
+      ])
+
+      const tags = (detail.tags || []).map(t => `<span class="tag">${t.name}</span>`).join('')
+      const chapters = chaptersData.chapters || []
+
+      inner.innerHTML = `
+        <div class="detail-hero">
+          <img src="${detail.coverUrl}" alt="">
+          <div class="detail-meta">
+            <h2>${detail.title}</h2>
+            <div class="author">${detail.author || 'Unknown author'}</div>
+            <span class="status">${detail.status || 'unknown'}</span>
+            <div class="tags">${tags}</div>
+          </div>
+        </div>
+        <div class="detail-desc">${detail.description || 'No description.'}</div>
+        <div class="chapters-header">${chapters.length} chapters</div>
+        <div class="chapter-list">
+          ${chapters.map(ch => `
+            <div class="chapter-item" onclick="openChapter('${escapeAttr(ch.id)}')">
+              <div class="ch-num">Chapter ${ch.number || '?'}${ch.title ? ' — ' + ch.title : ''}</div>
+              <div class="ch-date">${ch.publishAt || ''}</div>
+            </div>
+          `).join('')}
+        </div>
+      `
+    } catch (e) {
+      inner.innerHTML = `<div class="spinner" style="color:#E94560">Error: ${e.message}</div>`
+    }
+  }
+
+  async function openChapter(chapterId) {
+    const inner = document.getElementById('detail-inner')
+    inner.innerHTML = '<div class="spinner">Loading pages…</div>'
+
+    try {
+      const data = await fetchJson(`/chapter/pages?url=${encodeURIComponent(chapterId)}`)
+      const pages = data.pages || []
+      inner.innerHTML = `
+        <div style="padding:16px 20px; border-bottom:1px solid #0F3460; display:flex; align-items:center; gap:12px">
+          <button onclick="history.back()" style="background:none;border:none;color:#E94560;cursor:pointer;font-size:0.9rem">← Back</button>
+          <span style="color:#9E9E9E;font-size:0.85rem">${pages.length} pages</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;padding:16px;gap:4px">
+          ${pages.map((url, i) => `<img src="${url}" alt="Page ${i+1}" loading="lazy"
+            referrerpolicy="no-referrer"
+            style="max-width:100%;border-radius:2px"
+            onerror="this.style.border='1px solid #E94560';">`).join('')}
+        </div>
+      `
+    } catch (e) {
+      inner.innerHTML = `<div class="spinner" style="color:#E94560">Error loading pages: ${e.message}</div>`
+    }
+  }
+
+  function closeDetail() {
+    document.getElementById('detail-panel').classList.remove('open')
+  }
+
+  document.getElementById('detail-panel').addEventListener('click', e => {
+    if (e.target === document.getElementById('detail-panel')) closeDetail()
+  })
+
+  function escapeAttr(s) {
+    return s.replace(/'/g, "\\'")
+  }
+
+  // ── Health check + initial load ───────────────────────────────────────────────
+
+  async function init() {
+    try {
+      await fetchJson('/health')
+      setStatus('Backend connected ✓', 'ok')
+      loadTab('popular', 1)
+    } catch (e) {
+      setStatus('Cannot reach backend at ' + API + ' — make sure  node server.js  is running', 'error')
+    }
+  }
+
+  init()
+</script>
+</body>
+</html>
