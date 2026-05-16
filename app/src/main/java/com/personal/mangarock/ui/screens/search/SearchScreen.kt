@@ -3,6 +3,7 @@ package com.personal.mangarock.ui.screens.search
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
@@ -25,6 +26,7 @@ import com.personal.mangarock.ui.components.ErrorState
 import com.personal.mangarock.ui.components.LoadingIndicator
 import com.personal.mangarock.ui.components.MangaCoverCard
 import com.personal.mangarock.ui.utils.displayTitle
+import com.personal.mangarock.ui.theme.Primary
 import com.personal.mangarock.ui.theme.Surface
 import com.personal.mangarock.ui.theme.TextMuted
 
@@ -36,11 +38,16 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
+    val selectedGenre by viewModel.selectedGenre.collectAsStateWithLifecycle()
     val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
-    val pagingItems = viewModel.searchResults.collectAsLazyPagingItems()
+    val searchResults = viewModel.searchResults.collectAsLazyPagingItems()
+    val genreResults = viewModel.genreResults.collectAsLazyPagingItems()
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    val showSearch = query.length >= 2
+    val showGenre = selectedGenre != null && !showSearch
 
     Scaffold(
         topBar = {
@@ -79,95 +86,155 @@ fun SearchScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            if (query.length < 2) {
-                if (recentSearches.isNotEmpty()) {
-                    Text(
-                        "Recent",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = TextMuted,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+
+            // Genre chips — always visible
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(GENRES) { genre ->
+                    FilterChip(
+                        selected = selectedGenre == genre,
+                        onClick = { viewModel.selectGenre(genre) },
+                        label = { Text(genre.name) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Primary,
+                            selectedLabelColor = androidx.compose.ui.graphics.Color.White
+                        )
                     )
-                    LazyColumn {
-                        items(recentSearches) { item ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.onQueryChange(item.query)
-                                        viewModel.submitSearch(item.query)
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                }
+            }
+
+            HorizontalDivider(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.05f))
+
+            when {
+                // Search results
+                showSearch -> {
+                    when (searchResults.loadState.refresh) {
+                        is LoadState.Loading -> LoadingIndicator(fullScreen = true)
+                        is LoadState.Error -> ErrorState(
+                            message = (searchResults.loadState.refresh as LoadState.Error)
+                                .error.message ?: "Search failed",
+                            onRetry = { searchResults.retry() }
+                        )
+                        else -> if (searchResults.itemCount == 0) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    Icons.Default.History,
-                                    contentDescription = null,
-                                    tint = TextMuted,
-                                    modifier = Modifier.size(18.dp)
+                                Text(
+                                    "No results for \"$query\"",
+                                    color = TextMuted,
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
-                                Spacer(Modifier.width(12.dp))
-                                Text(item.query, modifier = Modifier.weight(1f))
-                                IconButton(
-                                    onClick = { viewModel.deleteHistory(item.query) },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Delete",
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
                             }
+                        } else {
+                            MangaGrid(
+                                itemCount = searchResults.itemCount,
+                                getItem = { searchResults[it] },
+                                onMangaClick = {
+                                    viewModel.submitSearch(query)
+                                    onMangaClick(it)
+                                },
+                                isLoadingMore = searchResults.loadState.append is LoadState.Loading
+                            )
                         }
                     }
                 }
-            } else {
-                when (pagingItems.loadState.refresh) {
-                    is LoadState.Loading -> LoadingIndicator(fullScreen = true)
-                    is LoadState.Error -> ErrorState(
-                        message = (pagingItems.loadState.refresh as LoadState.Error)
-                            .error.message ?: "Search failed",
-                        onRetry = { pagingItems.retry() }
-                    )
-                    else -> if (pagingItems.itemCount == 0) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No results for \"$query\"",
-                                color = TextMuted,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            items(pagingItems.itemCount) { index ->
-                                pagingItems[index]?.let { manga ->
-                                    MangaCoverCard(
-                                        title = manga.displayTitle(),
-                                        coverUrl = manga.coverUrl,
-                                        onClick = {
-                                            viewModel.submitSearch(query)
-                                            onMangaClick(manga.id)
+
+                // Genre results
+                showGenre -> {
+                    when (genreResults.loadState.refresh) {
+                        is LoadState.Loading -> LoadingIndicator(fullScreen = true)
+                        is LoadState.Error -> ErrorState(
+                            message = (genreResults.loadState.refresh as LoadState.Error)
+                                .error.message ?: "Failed to load genre",
+                            onRetry = { genreResults.retry() }
+                        )
+                        else -> MangaGrid(
+                            itemCount = genreResults.itemCount,
+                            getItem = { genreResults[it] },
+                            onMangaClick = onMangaClick,
+                            isLoadingMore = genreResults.loadState.append is LoadState.Loading
+                        )
+                    }
+                }
+
+                // Recent searches
+                else -> {
+                    if (recentSearches.isNotEmpty()) {
+                        Text(
+                            "Recent",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextMuted,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                        LazyColumn {
+                            items(recentSearches) { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.onQueryChange(item.query)
+                                            viewModel.submitSearch(item.query)
                                         }
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.History,
+                                        contentDescription = null,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(18.dp)
                                     )
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(item.query, modifier = Modifier.weight(1f))
+                                    IconButton(
+                                        onClick = { viewModel.deleteHistory(item.query) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Delete",
+                                            tint = TextMuted,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
-                            }
-                            if (pagingItems.loadState.append is LoadState.Loading) {
-                                item { LoadingIndicator() }
-                                item { }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MangaGrid(
+    itemCount: Int,
+    getItem: (Int) -> com.personal.mangarock.domain.models.Manga?,
+    onMangaClick: (String) -> Unit,
+    isLoadingMore: Boolean
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        contentPadding = PaddingValues(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        items(itemCount) { index ->
+            getItem(index)?.let { manga ->
+                MangaCoverCard(
+                    title = manga.displayTitle(),
+                    coverUrl = manga.coverUrl,
+                    onClick = { onMangaClick(manga.id) }
+                )
+            }
+        }
+        if (isLoadingMore) {
+            item { LoadingIndicator() }
+            item { }
         }
     }
 }

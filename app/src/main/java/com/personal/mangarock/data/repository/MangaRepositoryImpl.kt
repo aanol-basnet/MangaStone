@@ -3,6 +3,7 @@ package com.personal.mangarock.data.repository
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import com.personal.mangarock.data.paging.GenrePagingSource
 import com.personal.mangarock.data.paging.SourcePagingSource
 import com.personal.mangarock.data.source.MangaHookSource
 import com.personal.mangarock.domain.models.Manga
@@ -22,6 +23,11 @@ class MangaRepositoryImpl @Inject constructor(
     override fun searchManga(query: String): Flow<PagingData<Manga>> =
         Pager(PagingConfig(pageSize = 24, enablePlaceholders = false)) {
             SourcePagingSource(mangaHookSource, query)
+        }.flow
+
+    override fun getMangaByGenre(genre: String): Flow<PagingData<Manga>> =
+        Pager(PagingConfig(pageSize = 24, enablePlaceholders = false)) {
+            GenrePagingSource(mangaHookSource, genre)
         }.flow
 
     override suspend fun getManga(id: String): Result<Manga> = runCatching {

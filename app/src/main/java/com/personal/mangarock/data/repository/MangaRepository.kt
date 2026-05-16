@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 interface MangaRepository {
     fun getBrowseManga(): Flow<PagingData<Manga>>
     fun searchManga(query: String): Flow<PagingData<Manga>>
+    fun getMangaByGenre(genre: String): Flow<PagingData<Manga>>
     suspend fun getManga(id: String): Result<Manga>
     fun getPopularManga(): Flow<Result<List<Manga>>>
     fun getNewReleases(): Flow<Result<List<Manga>>>

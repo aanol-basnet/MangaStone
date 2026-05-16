@@ -79,6 +79,11 @@ class MangaHookSource @Inject constructor(
         }
     }
 
+    suspend fun getMangaByGenre(genre: String, page: Int): SourcePage {
+        val response = api.getGenreManga(genre, page)
+        return SourcePage(response.mangaList.map { it.toManga() }, response.mangaList.size >= 24)
+    }
+
     override suspend fun getPageList(chapterId: String): List<String> {
         // chapterId is encoded as "mangaId::chapId"
         val (mangaId, chapId) = chapterId.split("::", limit = 2)

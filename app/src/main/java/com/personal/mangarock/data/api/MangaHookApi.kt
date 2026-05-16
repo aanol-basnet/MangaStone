@@ -33,4 +33,10 @@ interface MangaHookApi {
         @Path("id") id: String,
         @Path("ch", encoded = true) chapterId: String
     ): ChapterImagesResponse
+
+    @GET("api/genre/{genre}")
+    suspend fun getGenreManga(
+        @Path("genre") genre: String,
+        @Query("page") page: Int = 1
+    ): MangaListResponse
 }

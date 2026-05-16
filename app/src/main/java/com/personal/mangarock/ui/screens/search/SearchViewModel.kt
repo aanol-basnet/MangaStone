@@ -15,6 +15,35 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class Genre(val name: String, val slug: String)
+
+val GENRES = listOf(
+    Genre("Action", "action"),
+    Genre("Adventure", "adventure"),
+    Genre("Comedy", "comedy"),
+    Genre("Drama", "drama"),
+    Genre("Fantasy", "fantasy"),
+    Genre("Romance", "romance"),
+    Genre("Supernatural", "supernatural"),
+    Genre("Mystery", "mystery"),
+    Genre("Horror", "horror"),
+    Genre("Sci-fi", "sci-fi"),
+    Genre("Slice of Life", "slice-of-life"),
+    Genre("Sports", "sports"),
+    Genre("Psychological", "psychological"),
+    Genre("Historical", "historical"),
+    Genre("Martial Arts", "martial-arts"),
+    Genre("Shounen", "shounen"),
+    Genre("Seinen", "seinen"),
+    Genre("Shoujo", "shoujo"),
+    Genre("Josei", "josei"),
+    Genre("Mecha", "mecha"),
+    Genre("Harem", "harem"),
+    Genre("Ecchi", "ecchi"),
+    Genre("Webtoon", "webtoons"),
+    Genre("Tragedy", "tragedy"),
+)
+
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
@@ -24,6 +53,9 @@ class SearchViewModel @Inject constructor(
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
+
+    private val _selectedGenre = MutableStateFlow<Genre?>(null)
+    val selectedGenre: StateFlow<Genre?> = _selectedGenre.asStateFlow()
 
     val recentSearches: StateFlow<List<SearchHistoryEntity>> = searchHistoryDao
         .getRecentSearches()
@@ -36,7 +68,25 @@ class SearchViewModel @Inject constructor(
         .flatMapLatest { query -> mangaRepository.searchManga(query) }
         .cachedIn(viewModelScope)
 
-    fun onQueryChange(q: String) { _query.value = q }
+    val genreResults: Flow<PagingData<Manga>> = _selectedGenre
+        .filterNotNull()
+        .distinctUntilChanged()
+        .flatMapLatest { genre -> mangaRepository.getMangaByGenre(genre.slug) }
+        .cachedIn(viewModelScope)
+
+    fun onQueryChange(q: String) {
+        _query.value = q
+        if (q.length >= 2) _selectedGenre.value = null  // query takes over
+    }
+
+    fun selectGenre(genre: Genre) {
+        if (_selectedGenre.value == genre) {
+            _selectedGenre.value = null  // tap again to deselect
+        } else {
+            _selectedGenre.value = genre
+            _query.value = ""  // clear search when browsing by genre
+        }
+    }
 
     fun submitSearch(q: String) {
         if (q.isBlank()) return
