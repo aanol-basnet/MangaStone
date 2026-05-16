@@ -1,4 +1,4 @@
--keep class com.personal.mangarock.data.api.models.** { *; }
+﻿-keep class com.personal.mangastone.data.api.models.** { *; }
 -keepattributes Signature
 -keepattributes *Annotation*
 -dontwarn okhttp3.**

@@ -1,11 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.MangaRock" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.MangaStone" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
     </style>
-    <style name="Theme.MangaRock.Splash" parent="Theme.SplashScreen">
+    <style name="Theme.MangaStone.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#1A1A2E</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
-        <item name="postSplashScreenTheme">@style/Theme.MangaRock</item>
+        <item name="postSplashScreenTheme">@style/Theme.MangaStone</item>
     </style>
 </resources>

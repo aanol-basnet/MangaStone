@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.personal.mangarock"
+    namespace = "com.personal.mangastone"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.personal.mangarock"
+        applicationId = "com.personal.mangastone"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
