@@ -193,9 +193,14 @@ class MangaHereScraper @Inject constructor(
             coroutineScope {
                 (1..imgCount step 2).map { page ->
                     async(Dispatchers.IO) {
+                        // Send guidkey as both query param and dm5_key cookie, as MangaHere expects
                         val apiUrl = "$BASE/chapterfun.ashx?cid=$chapId&page=$page&key=$guidkey"
-                        val packed = fetch(apiUrl, referer = pageUrl)
-                        val urls   = decodeChapterFun(packed)
+                        val packed = fetchWithCookie(
+                            url = apiUrl,
+                            referer = pageUrl,
+                            extraCookie = if (guidkey.isNotEmpty()) "dm5_key=$guidkey" else null
+                        )
+                        val urls = decodeChapterFun(packed)
                         urls.forEachIndexed { i, url ->
                             val idx = page - 1 + i
                             if (idx < imgCount) slots[idx] = url.toAbsoluteUrl()
@@ -204,7 +209,29 @@ class MangaHereScraper @Inject constructor(
                 }.awaitAll()
             }
 
-            slots.filterNotNull()
+            val result = slots.filterNotNull()
+            if (result.isEmpty()) throw Exception("No images decoded for $mangaSlug/$chapPath (imgCount=$imgCount)")
+            result
+        }
+
+    /** Like [fetch] but allows appending extra cookies. */
+    private suspend fun fetchWithCookie(url: String, referer: String, extraCookie: String?): String =
+        withContext(Dispatchers.IO) {
+            val cookie = buildString {
+                append("isAdult=1")
+                if (!extraCookie.isNullOrEmpty()) {
+                    append("; ")
+                    append(extraCookie)
+                }
+            }
+            val req = Request.Builder()
+                .url(url)
+                .header("User-Agent", UA)
+                .header("Referer", referer)
+                .header("Cookie", cookie)
+                .header("X-Requested-With", "XMLHttpRequest")
+                .build()
+            okHttpClient.newCall(req).execute().use { it.body?.string() ?: "" }
         }
 
     /** Extract the guidkey that MangaHere embeds in an inline script. */
@@ -212,20 +239,55 @@ class MangaHereScraper @Inject constructor(
         val scriptRx = Regex("""<script[^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)
         for (m in scriptRx.findAll(html)) {
             val content = m.groupValues[1]
-            if ("dm5_key" in content && "guidkey" in content) {
+            if ("dm5_key" in content || "guidkey" in content) {
                 Regex("""guidkey\s*=\s*["']([^"']*)["']""").find(content)
+                    ?.groupValues?.get(1)?.let { return it }
+                // Also check for direct dm5_key assignment
+                Regex("""dm5_key\s*=\s*["']([^"']*)["']""").find(content)
                     ?.groupValues?.get(1)?.let { return it }
             }
         }
         return ""
     }
 
-    /** Run the p,a,c,k,e,d unpacker then pull the `d` URL array out. */
+    /**
+     * Decode a chapterfun.ashx response.
+     *
+     * After unpacking the p,a,c,k,e,d wrapper the result is a function like:
+     *   function dm5imagefun(){
+     *     var pix="//zjcdn.mangahere.org/store/manga/.../compressed";
+     *     var pvalue=["/img1.jpg","/img2.jpg"];
+     *     for(...){ pvalue[i]=pix+pvalue[i] }
+     *     return pvalue
+     *   }
+     *   var d; d=dm5imagefun(); ...
+     *
+     * We extract pix + pvalue directly instead of trying to evaluate the JS.
+     */
     private fun decodeChapterFun(packed: String): List<String> {
         val unpacked = unpackJs(packed)
-        val m = Regex("""var\s+d\s*=\s*(\[[\s\S]*?])""").find(unpacked) ?: return emptyList()
+
+        // Primary path: extract pix (base URL) and pvalue (relative paths array)
+        val pixMatch   = Regex("""var\s+pix\s*=\s*"([^"]+)"""").find(unpacked)
+        val pvalueMatch = Regex("""var\s+pvalue\s*=\s*(\[[\s\S]*?])""").find(unpacked)
+
+        if (pixMatch != null && pvalueMatch != null) {
+            val pix = pixMatch.groupValues[1]           // "//zjcdn.mangahere.org/.../compressed"
+            val relPaths = try {
+                Gson().fromJson(pvalueMatch.groupValues[1], Array<String>::class.java)
+                    ?.toList() ?: emptyList()
+            } catch (_: Exception) { emptyList() }
+            if (relPaths.isNotEmpty()) {
+                return relPaths.map { "$pix$it" }       // "//zjcdn.../compressed/imgN.jpg"
+            }
+        }
+
+        // Fallback: older format where d is assigned a literal array  d=[...]
+        val arrayMatch = Regex("""(?:var\s+)?d\s*=\s*(\[[\s\S]*?])""").find(unpacked)
+            ?: return emptyList()
         return try {
-            Gson().fromJson(m.groupValues[1], Array<String>::class.java)?.toList() ?: emptyList()
+            Gson().fromJson(arrayMatch.groupValues[1], Array<String>::class.java)
+                ?.toList() ?: emptyList()
         } catch (_: Exception) {
             emptyList()
         }
@@ -233,17 +295,28 @@ class MangaHereScraper @Inject constructor(
 
     /**
      * Decode a standard eval(function(p,a,c,k,e,d){...}('payload',base,count,'dict'.split('|'))) packer.
+     * Supports both single-quoted and double-quoted variants (MangaHere uses double quotes).
      * Digit mapping: 0-9 → 0-9, a-z → 10-35, A-Z → 36-61.
      */
     private fun unpackJs(packed: String): String {
-        val m = Regex(
-            """\}\s*\(\s*'(.*?)',\s*(\d+),\s*\d+,\s*'(.*?)'\s*\.split\('\|'\)""",
+        // Try double-quote variant first (MangaHere's chapterfun.ashx uses double quotes)
+        val doubleQ = Regex(
+            """\}\s*\(\s*"([\s\S]*?)",\s*(\d+),\s*\d+,\s*"([\s\S]*?)"\.split\("\|"\)""",
             setOf(RegexOption.DOT_MATCHES_ALL)
-        ).find(packed) ?: return packed
+        )
+        // Fallback: single-quote variant
+        val singleQ = Regex(
+            """\}\s*\(\s*'([\s\S]*?)',\s*(\d+),\s*\d+,\s*'([\s\S]*?)'\.split\('\|'\)""",
+            setOf(RegexOption.DOT_MATCHES_ALL)
+        )
 
-        val payload = m.groupValues[1].replace("\\'", "'")
-        val base    = m.groupValues[2].toInt()
-        val dict    = m.groupValues[3].split("|")
+        val m = doubleQ.find(packed) ?: singleQ.find(packed) ?: return packed
+
+        val payload = m.groupValues[1]
+            .replace("\\'", "'")
+            .replace("\\\"", "\"")
+        val base = m.groupValues[2].toInt()
+        val dict = m.groupValues[3].split("|")
 
         return Regex("""\b\w+\b""").replace(payload) { r ->
             val idx = fromBase(r.value, base)

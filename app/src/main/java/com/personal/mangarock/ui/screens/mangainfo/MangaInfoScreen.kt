@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.personal.mangarock.data.local.entities.DownloadStatus
 import com.personal.mangarock.domain.models.Chapter
 import com.personal.mangarock.domain.models.Manga
 import com.personal.mangarock.ui.components.ChapterListItem
@@ -77,7 +78,8 @@ fun MangaInfoScreen(
                     onTagClick = onTagClick,
                     onFavoriteToggle = viewModel::toggleFavorite,
                     onSortToggle = viewModel::toggleSortOrder,
-                    onDownloadChapter = { /* Phase 6 */ }
+                    onDownloadChapter = { chapter -> viewModel.downloadChapter(chapter) },
+                    onDownloadAll = viewModel::downloadAllChapters
                 )
             }
         }
@@ -91,7 +93,8 @@ private fun MangaInfoContent(
     onTagClick: (String) -> Unit,
     onFavoriteToggle: () -> Unit,
     onSortToggle: () -> Unit,
-    onDownloadChapter: (String) -> Unit
+    onDownloadChapter: (Chapter) -> Unit,
+    onDownloadAll: () -> Unit
 ) {
     val manga = state.manga
     var descriptionExpanded by remember { mutableStateOf(false) }
@@ -248,12 +251,24 @@ private fun MangaInfoContent(
                     "${state.chapters.size} Chapters",
                     style = MaterialTheme.typography.titleMedium
                 )
-                IconButton(onClick = onSortToggle) {
-                    Icon(
-                        Icons.Default.SwapVert,
-                        contentDescription = "Toggle sort",
-                        tint = Primary
-                    )
+                Row {
+                    // Download all undownloaded chapters
+                    val allDownloaded = state.chapters.isNotEmpty() &&
+                        state.chapters.all { state.downloadStatuses[it.id] == DownloadStatus.COMPLETED }
+                    IconButton(onClick = onDownloadAll, enabled = !allDownloaded) {
+                        Icon(
+                            if (allDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
+                            contentDescription = "Download all",
+                            tint = if (allDownloaded) Primary else Primary.copy(alpha = 0.7f)
+                        )
+                    }
+                    IconButton(onClick = onSortToggle) {
+                        Icon(
+                            Icons.Default.SwapVert,
+                            contentDescription = "Toggle sort",
+                            tint = Primary
+                        )
+                    }
                 }
             }
         }
@@ -263,9 +278,9 @@ private fun MangaInfoContent(
             ChapterListItem(
                 chapter = chapter,
                 isRead = state.readChapterIds.contains(chapter.id),
-                isDownloaded = false,
+                downloadStatus = state.downloadStatuses[chapter.id],
                 onClick = { onChapterClick(chapter.id) },
-                onDownloadClick = { onDownloadChapter(chapter.id) }
+                onDownloadClick = { onDownloadChapter(chapter) }
             )
             HorizontalDivider(color = Surface.copy(alpha = 0.5f), thickness = 0.5.dp)
         }

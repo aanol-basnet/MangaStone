@@ -1,6 +1,7 @@
 package com.personal.mangarock.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.personal.mangarock.data.local.entities.DownloadStatus
 import com.personal.mangarock.domain.models.Chapter
+import com.personal.mangarock.ui.theme.Primary
 import com.personal.mangarock.ui.theme.ReadChapter
 import com.personal.mangarock.ui.theme.TextMuted
 import java.time.Instant
@@ -30,7 +35,8 @@ import java.time.format.DateTimeFormatter
 fun ChapterListItem(
     chapter: Chapter,
     isRead: Boolean,
-    isDownloaded: Boolean,
+    /** null = never queued; otherwise reflects current download state */
+    downloadStatus: DownloadStatus?,
     onClick: () -> Unit,
     onDownloadClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -61,13 +67,47 @@ fun ChapterListItem(
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
-        IconButton(onClick = onDownloadClick, modifier = Modifier.size(36.dp)) {
-            Icon(
-                imageVector = if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
-                contentDescription = if (isDownloaded) "Downloaded" else "Download",
-                tint = if (isDownloaded) MaterialTheme.colorScheme.primary else TextMuted,
-                modifier = Modifier.size(20.dp)
-            )
+        // Download icon / progress indicator
+        Box(
+            modifier = Modifier.size(36.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when (downloadStatus) {
+                DownloadStatus.COMPLETED -> IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Default.DownloadDone,
+                        contentDescription = "Downloaded",
+                        tint = Primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                DownloadStatus.DOWNLOADING -> CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Primary,
+                    strokeWidth = 2.dp
+                )
+                DownloadStatus.QUEUED -> CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Primary.copy(alpha = 0.4f),
+                    strokeWidth = 2.dp
+                )
+                DownloadStatus.FAILED -> IconButton(onClick = onDownloadClick, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Default.ErrorOutline,
+                        contentDescription = "Retry download",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                null -> IconButton(onClick = onDownloadClick, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Default.Download,
+                        contentDescription = "Download",
+                        tint = TextMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }

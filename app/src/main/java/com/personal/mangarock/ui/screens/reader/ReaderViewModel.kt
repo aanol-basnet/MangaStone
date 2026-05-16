@@ -1,5 +1,6 @@
 package com.personal.mangarock.ui.screens.reader
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personal.mangarock.data.repository.ChapterRepository
@@ -7,12 +8,16 @@ import com.personal.mangarock.data.repository.FavoritesRepository
 import com.personal.mangarock.domain.models.Chapter
 import com.personal.mangarock.domain.models.ReadingProgress
 import com.personal.mangarock.ui.screens.settings.AppPreferences
+import com.personal.mangarock.workers.DownloadWorker
+import com.personal.mangarock.workers.toSafeDirName
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 import java.io.File
 import javax.inject.Inject
 
@@ -60,7 +65,8 @@ sealed class ReaderUiState {
 class ReaderViewModel @Inject constructor(
     private val chapterRepository: ChapterRepository,
     private val favoritesRepository: FavoritesRepository,
-    private val prefs: AppPreferences
+    private val prefs: AppPreferences,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ReaderUiState>(ReaderUiState.Loading)
@@ -239,15 +245,12 @@ class ReaderViewModel @Inject constructor(
     }
 
     private fun loadLocalPages(chapterId: String): List<String>? {
-        val dir = File(
-            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
-            "MangaRock/chapters/$chapterId"
-        )
+        val dir = DownloadWorker.chapterDir(context, chapterId)
         return if (dir.exists()) {
             dir.listFiles()
                 ?.filter { it.isFile && it.extension == "jpg" }
                 ?.sortedBy { it.nameWithoutExtension.toIntOrNull() ?: 0 }
-                ?.map { it.absolutePath }
+                ?.map { it.toUri().toString() }
                 ?.takeIf { it.isNotEmpty() }
         } else null
     }

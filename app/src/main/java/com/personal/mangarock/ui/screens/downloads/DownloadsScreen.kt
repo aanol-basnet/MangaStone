@@ -1,14 +1,15 @@
 package com.personal.mangarock.ui.screens.downloads
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,11 +33,6 @@ fun DownloadsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Downloads") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
             )
         },
@@ -44,33 +40,77 @@ fun DownloadsScreen(
     ) { padding ->
         if (uiState.grouped.isEmpty()) {
             EmptyState(
-                message = "No downloaded chapters.\nTap the download icon on any chapter.",
+                message = "No downloaded chapters.\nTap ↓ on any chapter to download it.",
                 modifier = Modifier.padding(padding)
             )
         } else {
             LazyColumn(contentPadding = padding) {
+
+                // Active queue summary banner
+                if (uiState.activeCount > 0) {
+                    item {
+                        ActiveDownloadsBanner(count = uiState.activeCount)
+                    }
+                }
+
+                // Per-manga groups
                 uiState.grouped.forEach { (mangaTitle, chapters) ->
                     item(key = "header_$mangaTitle") {
                         Text(
                             mangaTitle,
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(
+                                start = 16.dp, end = 16.dp,
+                                top = 16.dp, bottom = 4.dp
+                            )
                         )
                     }
-                    items(chapters.size) { index ->
+                    items(chapters.size, key = { chapters[it].chapterId }) { index ->
+                        val chapter = chapters[index]
                         DownloadChapterItem(
-                            download = chapters[index],
+                            download = chapter,
                             onClick = {
-                                if (chapters[index].status == DownloadStatus.COMPLETED) {
-                                    onChapterClick(chapters[index].chapterId, chapters[index].mangaId)
+                                if (chapter.status == DownloadStatus.COMPLETED) {
+                                    onChapterClick(chapter.chapterId, chapter.mangaId)
                                 }
                             },
-                            onDelete = { viewModel.deleteDownload(chapters[index].chapterId) },
-                            onRetry = { viewModel.retryDownload(chapters[index].chapterId, chapters[index].mangaId) }
+                            onDelete = { viewModel.deleteDownload(chapter.chapterId) },
+                            onRetry = { viewModel.retryDownload(chapter.chapterId) }
                         )
                     }
                 }
+
+                item { Spacer(Modifier.height(16.dp)) }
             }
+        }
+    }
+}
+
+@Composable
+private fun ActiveDownloadsBanner(count: Int) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = Primary.copy(alpha = 0.12f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                color = Primary,
+                strokeWidth = 2.dp
+            )
+            Text(
+                text = "$count chapter${if (count > 1) "s" else ""} downloading…",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Primary
+            )
         }
     }
 }
@@ -85,7 +125,11 @@ private fun DownloadChapterItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .clickable(
+                enabled = download.status == DownloadStatus.COMPLETED,
+                onClick = onClick
+            )
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -95,36 +139,61 @@ private fun DownloadChapterItem(
                 }",
                 style = MaterialTheme.typography.bodyMedium
             )
+            Spacer(Modifier.height(4.dp))
             when (download.status) {
                 DownloadStatus.DOWNLOADING -> {
+                    val progress = if (download.totalPages > 0)
+                        download.downloadedPages.toFloat() / download.totalPages
+                    else 0f
                     LinearProgressIndicator(
-                        progress = { download.downloadedPages.toFloat() / download.totalPages.coerceAtLeast(1) },
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        color = Primary
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Primary,
+                        trackColor = Primary.copy(alpha = 0.2f)
                     )
                     Text(
-                        "${download.downloadedPages}/${download.totalPages} pages",
+                        "${download.downloadedPages} / ${download.totalPages} pages",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
+                }
+                DownloadStatus.QUEUED -> {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Primary.copy(alpha = 0.4f),
+                        trackColor = Primary.copy(alpha = 0.1f)
+                    )
+                    Text(
+                        "Waiting in queue…",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextMuted
                     )
                 }
                 DownloadStatus.COMPLETED -> Text(
-                    "${download.totalPages} pages",
+                    "${download.totalPages} pages  •  tap to read",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextMuted
                 )
-                DownloadStatus.FAILED -> TextButton(onClick = onRetry) {
-                    Text("Retry", color = Primary)
+                DownloadStatus.FAILED -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Download failed",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    TextButton(
+                        onClick = onRetry,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("Retry", color = Primary, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
-                DownloadStatus.QUEUED -> Text(
-                    "Queued",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
             }
         }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextMuted)
+        IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextMuted, modifier = Modifier.size(18.dp))
         }
     }
 }

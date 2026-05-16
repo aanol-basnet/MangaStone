@@ -23,6 +23,9 @@ interface DownloadDao {
     @Query("UPDATE downloads SET status = :status, downloadedPages = :downloadedPages WHERE chapterId = :chapterId")
     suspend fun updateDownloadProgress(chapterId: String, status: DownloadStatus, downloadedPages: Int)
 
+    @Query("UPDATE downloads SET totalPages = :totalPages WHERE chapterId = :chapterId")
+    suspend fun setTotalPages(chapterId: String, totalPages: Int)
+
     @Query("DELETE FROM downloads WHERE chapterId = :chapterId")
     suspend fun deleteDownload(chapterId: String)
 
