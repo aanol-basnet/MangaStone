@@ -12,7 +12,7 @@ import com.personal.mangarock.R
 import com.personal.mangarock.data.local.dao.FavoriteDao
 import com.personal.mangarock.data.local.dao.NotificationDao
 import com.personal.mangarock.data.local.entities.NotificationEntity
-import com.personal.mangarock.data.source.MangaHookSource
+import com.personal.mangarock.data.source.MangaSource
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 class ChapterUpdateWorker @AssistedInject constructor(
     @Assisted private val context: android.content.Context,
     @Assisted workerParams: WorkerParameters,
-    private val mangaHookSource: MangaHookSource,
+    private val mangaHookSource: MangaSource,
     private val favoriteDao: FavoriteDao,
     private val notificationDao: NotificationDao
 ) : CoroutineWorker(context, workerParams) {

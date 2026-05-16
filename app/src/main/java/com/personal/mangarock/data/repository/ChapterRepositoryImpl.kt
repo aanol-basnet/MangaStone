@@ -2,7 +2,7 @@ package com.personal.mangarock.data.repository
 
 import com.personal.mangarock.data.local.dao.ReadingProgressDao
 import com.personal.mangarock.data.local.entities.ReadingProgressEntity
-import com.personal.mangarock.data.source.MangaHookSource
+import com.personal.mangarock.data.source.MangaSource
 import com.personal.mangarock.domain.models.Chapter
 import com.personal.mangarock.domain.models.ReadingProgress
 import kotlinx.coroutines.flow.Flow
@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class ChapterRepositoryImpl @Inject constructor(
-    private val mangaHookSource: MangaHookSource,
+    private val mangaHookSource: MangaSource,
     private val progressDao: ReadingProgressDao
 ) : ChapterRepository {
 

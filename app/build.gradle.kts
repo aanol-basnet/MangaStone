@@ -64,10 +64,12 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     // Network
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.gson)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+
+    // HTML scraping (replaces backend server)
+    implementation("org.jsoup:jsoup:1.17.2")
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // Image loading
     implementation(libs.coil.compose)

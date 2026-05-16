@@ -6,6 +6,8 @@ import com.personal.mangarock.data.repository.FavoritesRepository
 import com.personal.mangarock.data.repository.FavoritesRepositoryImpl
 import com.personal.mangarock.data.repository.MangaRepository
 import com.personal.mangarock.data.repository.MangaRepositoryImpl
+import com.personal.mangarock.data.scraper.MangaHereScraper
+import com.personal.mangarock.data.source.MangaSource
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -15,6 +17,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindMangaSource(impl: MangaHereScraper): MangaSource
 
     @Binds
     @Singleton

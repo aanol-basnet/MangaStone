@@ -5,7 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.personal.mangarock.data.local.dao.DownloadDao
 import com.personal.mangarock.data.local.entities.DownloadStatus
-import com.personal.mangarock.data.source.MangaHookSource
+import com.personal.mangarock.data.source.MangaSource
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +19,7 @@ import javax.inject.Named
 class DownloadWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val mangaHookSource: MangaHookSource,
+    private val mangaHookSource: MangaSource,
     private val downloadDao: DownloadDao,
     @Named("image") private val okHttpClient: OkHttpClient
 ) : CoroutineWorker(context, workerParams) {

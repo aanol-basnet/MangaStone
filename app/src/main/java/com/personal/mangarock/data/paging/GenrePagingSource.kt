@@ -2,11 +2,11 @@ package com.personal.mangarock.data.paging
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
-import com.personal.mangarock.data.source.MangaHookSource
+import com.personal.mangarock.data.scraper.MangaHereScraper
 import com.personal.mangarock.domain.models.Manga
 
 class GenrePagingSource(
-    private val source: MangaHookSource,
+    private val source: MangaHereScraper,
     private val genre: String
 ) : PagingSource<Int, Manga>() {
 

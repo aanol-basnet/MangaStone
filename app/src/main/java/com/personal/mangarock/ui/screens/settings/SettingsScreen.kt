@@ -3,14 +3,12 @@ package com.personal.mangarock.ui.screens.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -133,39 +131,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Server section
-            item {
-                var showServerDialog by remember { mutableStateOf(false) }
-
-                SettingsSectionHeader("Server")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showServerDialog = true }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Server URL", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            uiState.serverUrl,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextMuted
-                        )
-                    }
-                    Text("Change", color = Primary, style = MaterialTheme.typography.bodyMedium)
-                }
-
-                if (showServerDialog) {
-                    ServerUrlDialog(
-                        current = uiState.serverUrl,
-                        onSave = { viewModel.setServerUrl(it); showServerDialog = false },
-                        onDismiss = { showServerDialog = false }
-                    )
-                }
-            }
-
             // About
             item {
                 SettingsSectionHeader("About")
@@ -176,7 +141,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Content provided by", style = MaterialTheme.typography.bodyMedium)
-                    Text("MangaKakalot", color = Primary, style = MaterialTheme.typography.bodyMedium)
+                    Text("MangaHere", color = Primary, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -264,47 +229,6 @@ private fun DropdownSetting(
             }
         }
     }
-}
-
-@Composable
-private fun ServerUrlDialog(
-    current: String,
-    onSave: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var text by remember { mutableStateOf(current) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Server URL") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Enter your server's IP and port.\nExample: 192.168.1.65:3000",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    singleLine = true,
-                    placeholder = { Text("192.168.1.65:3000") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(text) }) {
-                Text("Save", color = Primary)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }
 
 private fun Long.toReadableSize(): String {

@@ -22,7 +22,6 @@ class AppPreferences @Inject constructor(
         val DATA_SAVER = booleanPreferencesKey("data_saver")
         val TITLE_LANGUAGE = stringPreferencesKey("title_language")
         val READING_DIRECTION = stringPreferencesKey("reading_direction")
-        val SERVER_URL = stringPreferencesKey("server_url")
     }
 
     val theme: Flow<String> = context.dataStore.data.map { it[Keys.THEME] ?: "system" }
@@ -30,12 +29,10 @@ class AppPreferences @Inject constructor(
     val dataSaver: Flow<Boolean> = context.dataStore.data.map { it[Keys.DATA_SAVER] ?: false }
     val titleLanguage: Flow<String> = context.dataStore.data.map { it[Keys.TITLE_LANGUAGE] ?: "en" }
     val readingDirection: Flow<String> = context.dataStore.data.map { it[Keys.READING_DIRECTION] ?: "VERTICAL" }
-    val serverUrl: Flow<String> = context.dataStore.data.map { it[Keys.SERVER_URL] ?: "http://192.168.1.65:3000/" }
 
     suspend fun setTheme(value: String) = context.dataStore.edit { it[Keys.THEME] = value }
     suspend fun setUpdateInterval(hours: Long) = context.dataStore.edit { it[Keys.UPDATE_INTERVAL_HOURS] = hours }
     suspend fun setDataSaver(enabled: Boolean) = context.dataStore.edit { it[Keys.DATA_SAVER] = enabled }
     suspend fun setTitleLanguage(value: String) = context.dataStore.edit { it[Keys.TITLE_LANGUAGE] = value }
     suspend fun setReadingDirection(value: String) = context.dataStore.edit { it[Keys.READING_DIRECTION] = value }
-    suspend fun setServerUrl(value: String) = context.dataStore.edit { it[Keys.SERVER_URL] = value }
 }
