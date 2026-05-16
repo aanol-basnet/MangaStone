@@ -242,17 +242,12 @@ async function getChapterImages(mangaSlug, chapterPath) {
 }
 
 async function getMangaByGenre(genre, page = 1) {
+    // MangaHere genre pages are at /{slug}/ e.g. /action/, /romance/
     const pageStr = page > 1 ? `${page}.htm` : ''
-    const url = `${BASE}/genre/${genre}/${pageStr}`
+    const url = `${BASE}/${genre}/${pageStr}`
     let html
     try {
-        html = await httpReq({
-            uri: url,
-            headers: HEADERS,
-            gzip: true,
-            followAllRedirects: true,
-            simple: false
-        })
+        html = await httpGet(url)
     } catch (e) {
         console.error('getMangaByGenre network error:', e.message?.slice(0, 200))
         return { mangaList: [], metaData: { totalPages: '1' } }
