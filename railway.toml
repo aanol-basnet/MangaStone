@@ -1,0 +1,9 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "node app.js"
+restartPolicyType = "ON_FAILURE"
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["nodejs_20"]

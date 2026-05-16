@@ -9,7 +9,8 @@
   ],
   "private": true,
   "scripts": {
-    "start": "nodemon --experimental-modules --es-module-specifier-resolution=node app.js"
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "@prisma/client": "^5.3.1",
