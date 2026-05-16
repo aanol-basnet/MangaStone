@@ -244,7 +244,19 @@ async function getChapterImages(mangaSlug, chapterPath) {
 async function getMangaByGenre(genre, page = 1) {
     const pageStr = page > 1 ? `${page}.htm` : ''
     const url = `${BASE}/genre/${genre}/${pageStr}`
-    const html = await httpGet(url)
+    let html
+    try {
+        html = await httpReq({
+            uri: url,
+            headers: HEADERS,
+            gzip: true,
+            followAllRedirects: true,
+            simple: false
+        })
+    } catch (e) {
+        console.error('getMangaByGenre network error:', e.message?.slice(0, 200))
+        return { mangaList: [], metaData: { totalPages: '1' } }
+    }
     const $ = cheerio.load(html)
 
     const mangaList = []
