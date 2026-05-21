@@ -33,7 +33,7 @@ class UpdateChecker @Inject constructor(
     private val gson = Gson()
 
     private val versionUrl =
-        "https://raw.githubusercontent.com/aanol-basnet/MangaRock/main/version.json"
+        "https://raw.githubusercontent.com/aanol-basnet/MangaStone/main/version.json"
 
     suspend fun checkForUpdate(currentVersion: String): UpdateResult = withContext(Dispatchers.IO) {
         try {
