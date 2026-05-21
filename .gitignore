@@ -16,3 +16,5 @@ backend/mangahook-api/server/node_modules/
 .externalNativeBuild
 .cxx
 local.properties
+*.jks
+*.keystore
