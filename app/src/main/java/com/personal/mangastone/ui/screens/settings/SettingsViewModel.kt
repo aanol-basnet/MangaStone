@@ -66,7 +66,7 @@ class SettingsViewModel @Inject constructor(
     val updateState: StateFlow<AppUpdateState> = _updateState.asStateFlow()
 
     // Must match versionName in build.gradle.kts
-    private val currentVersion = "1.0"
+    private val currentVersion = "1.1.1"
 
     fun checkForUpdate() {
         if (_updateState.value is AppUpdateState.Checking) return

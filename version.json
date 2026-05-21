@@ -1,5 +1,5 @@
 {
-  "latestVersion": "1.0",
-  "apkUrl": "https://github.com/aanol-basnet/MangaRock/releases/download/v1.0/MangaStone-1.0.apk",
-  "releaseNotes": "Initial release"
+  "latestVersion": "1.1.1",
+  "apkUrl": "https://github.com/aanol-basnet/MangaStone/releases/download/v1.1.1/MangaStone-1.1.1.apk",
+  "releaseNotes": "Fixed downloads, offline reading, global zoom with pan, and in-app update checker."
 }

@@ -180,7 +180,7 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Check for Updates", style = MaterialTheme.typography.bodyLarge)
-                        Text("Current version: 1.0", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                        Text("Current version: 1.1.1", style = MaterialTheme.typography.bodySmall, color = TextMuted)
                         when (val s = updateState) {
                             is AppUpdateState.Checking ->
                                 Text("Checking…", style = MaterialTheme.typography.bodySmall, color = TextMuted)
