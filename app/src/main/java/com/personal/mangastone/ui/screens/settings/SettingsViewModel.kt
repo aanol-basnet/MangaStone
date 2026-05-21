@@ -1,16 +1,22 @@
-﻿package com.personal.mangastone.ui.screens.settings
+package com.personal.mangastone.ui.screens.settings
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.personal.mangastone.update.UpdateChecker
+import com.personal.mangastone.update.UpdateResult
+import com.personal.mangastone.update.VersionInfo
 import com.personal.mangastone.workers.ChapterUpdateWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -22,9 +28,20 @@ data class SettingsUiState(
     val readingDirection: String = "VERTICAL"
 )
 
+sealed class AppUpdateState {
+    object Idle : AppUpdateState()
+    object Checking : AppUpdateState()
+    data class Available(val info: VersionInfo) : AppUpdateState()
+    object UpToDate : AppUpdateState()
+    data class Downloading(val progress: Int) : AppUpdateState()
+    data class ReadyToInstall(val file: File) : AppUpdateState()
+    data class Error(val message: String) : AppUpdateState()
+}
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: AppPreferences,
+    private val updateChecker: UpdateChecker,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -44,6 +61,46 @@ class SettingsViewModel @Inject constructor(
             readingDirection = readingDirection
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
+
+    private val _updateState = MutableStateFlow<AppUpdateState>(AppUpdateState.Idle)
+    val updateState: StateFlow<AppUpdateState> = _updateState.asStateFlow()
+
+    // Must match versionName in build.gradle.kts
+    private val currentVersion = "1.0"
+
+    fun checkForUpdate() {
+        if (_updateState.value is AppUpdateState.Checking) return
+        _updateState.value = AppUpdateState.Checking
+        viewModelScope.launch {
+            _updateState.value = when (val result = updateChecker.checkForUpdate(currentVersion)) {
+                is UpdateResult.Available -> AppUpdateState.Available(result.info)
+                is UpdateResult.UpToDate  -> AppUpdateState.UpToDate
+                is UpdateResult.Error     -> AppUpdateState.Error(result.message)
+            }
+        }
+    }
+
+    fun downloadUpdate(info: VersionInfo) {
+        _updateState.value = AppUpdateState.Downloading(0)
+        viewModelScope.launch {
+            val file = updateChecker.downloadApk(info.apkUrl) { progress ->
+                _updateState.value = AppUpdateState.Downloading(progress)
+            }
+            _updateState.value = if (file != null) {
+                AppUpdateState.ReadyToInstall(file)
+            } else {
+                AppUpdateState.Error("Download failed")
+            }
+        }
+    }
+
+    fun installUpdate(file: File) {
+        updateChecker.triggerInstall(file)
+    }
+
+    fun dismissUpdate() {
+        _updateState.value = AppUpdateState.Idle
+    }
 
     fun setTheme(theme: String) = viewModelScope.launch { prefs.setTheme(theme) }
     fun setUpdateInterval(hours: Long) = viewModelScope.launch {

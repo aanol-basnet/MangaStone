@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,38 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+
+    // Dialog when update is available
+    val availableInfo = (updateState as? AppUpdateState.Available)?.info
+    if (availableInfo != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissUpdate,
+            icon = { Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Primary) },
+            title = { Text("Update available — v${availableInfo.latestVersion}") },
+            text = {
+                Text(
+                    availableInfo.releaseNotes.ifBlank { "A new version is ready to install." },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.downloadUpdate(availableInfo) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) { Text("Download & Install") }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissUpdate) { Text("Later") }
+            }
+        )
+    }
+
+    // Trigger install as soon as download finishes
+    val readyFile = (updateState as? AppUpdateState.ReadyToInstall)?.file
+    LaunchedEffect(readyFile) {
+        readyFile?.let { viewModel.installUpdate(it) }
+    }
 
     Scaffold(
         topBar = {
@@ -128,6 +161,55 @@ fun SettingsScreen(
                         )
                     }
                     Text("Clear", color = Primary, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            // App Updates
+            item {
+                SettingsSectionHeader("App")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            enabled = updateState !is AppUpdateState.Checking &&
+                                      updateState !is AppUpdateState.Downloading
+                        ) { viewModel.checkForUpdate() }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Check for Updates", style = MaterialTheme.typography.bodyLarge)
+                        when (val s = updateState) {
+                            is AppUpdateState.Checking ->
+                                Text("Checking…", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                            is AppUpdateState.UpToDate ->
+                                Text("You're on the latest version", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                            is AppUpdateState.Downloading ->
+                                Text("Downloading… ${s.progress}%", style = MaterialTheme.typography.bodySmall, color = Primary)
+                            is AppUpdateState.ReadyToInstall ->
+                                Text("Installing…", style = MaterialTheme.typography.bodySmall, color = Primary)
+                            is AppUpdateState.Error ->
+                                Text("Error: ${s.message}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            else -> {}
+                        }
+                        if (updateState is AppUpdateState.Downloading) {
+                            Spacer(Modifier.height(4.dp))
+                            LinearProgressIndicator(
+                                progress = { (updateState as AppUpdateState.Downloading).progress / 100f },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = Primary,
+                                trackColor = Primary.copy(alpha = 0.2f)
+                            )
+                        }
+                    }
+                    if (updateState is AppUpdateState.Checking) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Primary,
+                            strokeWidth = 2.dp
+                        )
+                    }
                 }
             }
 
