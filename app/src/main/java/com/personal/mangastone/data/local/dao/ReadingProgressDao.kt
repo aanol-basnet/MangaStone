@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ReadingProgressDao {
 
+    @Query("SELECT * FROM reading_progress")
+    suspend fun getAllProgress(): List<ReadingProgressEntity>
+
     @Query("SELECT * FROM reading_progress WHERE chapterId = :chapterId")
     suspend fun getProgress(chapterId: String): ReadingProgressEntity?
 

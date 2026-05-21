@@ -10,6 +10,12 @@ interface FavoriteDao {
     @Query("SELECT * FROM favorites ORDER BY lastReadAt DESC")
     fun getAllFavorites(): Flow<List<FavoriteEntity>>
 
+    @Query("SELECT * FROM favorites ORDER BY lastReadAt DESC")
+    suspend fun getAllFavoritesOnce(): List<FavoriteEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(favorites: List<FavoriteEntity>)
+
     @Query("SELECT * FROM favorites WHERE mangaId = :mangaId")
     suspend fun getFavorite(mangaId: String): FavoriteEntity?
 

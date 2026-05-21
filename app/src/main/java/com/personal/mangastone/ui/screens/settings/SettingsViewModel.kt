@@ -1,8 +1,12 @@
 package com.personal.mangastone.ui.screens.settings
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.personal.mangastone.data.backup.ImportResult
+import com.personal.mangastone.data.backup.LibraryBackupManager
 import com.personal.mangastone.update.UpdateChecker
 import com.personal.mangastone.update.UpdateResult
 import com.personal.mangastone.update.VersionInfo
@@ -17,6 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.InputStream
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -27,6 +32,15 @@ data class SettingsUiState(
     val titleLanguage: String = "en",
     val readingDirection: String = "VERTICAL"
 )
+
+sealed class BackupState {
+    object Idle : BackupState()
+    object Exporting : BackupState()
+    data class ExportReady(val intent: Intent) : BackupState()
+    object Importing : BackupState()
+    data class ImportDone(val message: String) : BackupState()
+    data class Error(val message: String) : BackupState()
+}
 
 sealed class AppUpdateState {
     object Idle : AppUpdateState()
@@ -42,6 +56,7 @@ sealed class AppUpdateState {
 class SettingsViewModel @Inject constructor(
     private val prefs: AppPreferences,
     private val updateChecker: UpdateChecker,
+    private val backupManager: LibraryBackupManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -101,6 +116,39 @@ class SettingsViewModel @Inject constructor(
     fun dismissUpdate() {
         _updateState.value = AppUpdateState.Idle
     }
+
+    // ── Library backup ────────────────────────────────────────────────────────
+
+    private val _backupState = MutableStateFlow<BackupState>(BackupState.Idle)
+    val backupState: StateFlow<BackupState> = _backupState.asStateFlow()
+
+    fun exportLibrary() {
+        if (_backupState.value is BackupState.Exporting) return
+        _backupState.value = BackupState.Exporting
+        viewModelScope.launch {
+            try {
+                val uri    = backupManager.export()
+                val intent = backupManager.shareIntent(uri)
+                _backupState.value = BackupState.ExportReady(intent)
+            } catch (e: Exception) {
+                _backupState.value = BackupState.Error(e.message ?: "Export failed")
+            }
+        }
+    }
+
+    fun importLibrary(stream: InputStream) {
+        _backupState.value = BackupState.Importing
+        viewModelScope.launch {
+            _backupState.value = when (val result = backupManager.import(stream)) {
+                is ImportResult.Success -> BackupState.ImportDone(
+                    "Restored ${result.favoritesRestored} favorites and ${result.chaptersRestored} chapters"
+                )
+                is ImportResult.Error   -> BackupState.Error(result.message)
+            }
+        }
+    }
+
+    fun dismissBackupState() { _backupState.value = BackupState.Idle }
 
     fun setTheme(theme: String) = viewModelScope.launch { prefs.setTheme(theme) }
     fun setUpdateInterval(hours: Long) = viewModelScope.launch {

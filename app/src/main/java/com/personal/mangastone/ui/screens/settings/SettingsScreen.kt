@@ -1,5 +1,8 @@
 ﻿package com.personal.mangastone.ui.screens.settings
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,8 +27,43 @@ fun SettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context     = LocalContext.current
+    val uiState     by viewModel.uiState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val backupState by viewModel.backupState.collectAsStateWithLifecycle()
+
+    // File picker for import
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { context.contentResolver.openInputStream(it)?.let(viewModel::importLibrary) }
+    }
+
+    // Launch share sheet when export is ready
+    val exportIntent = (backupState as? BackupState.ExportReady)?.intent
+    LaunchedEffect(exportIntent) {
+        exportIntent?.let {
+            context.startActivity(Intent.createChooser(it, "Save backup to…"))
+            viewModel.dismissBackupState()
+        }
+    }
+
+    // Result dialog for import
+    val backupMessage = when (val s = backupState) {
+        is BackupState.ImportDone -> s.message
+        is BackupState.Error      -> "Error: ${s.message}"
+        else                      -> null
+    }
+    if (backupMessage != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissBackupState,
+            title = { Text(if (backupState is BackupState.ImportDone) "Import complete" else "Backup error") },
+            text  = { Text(backupMessage) },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissBackupState) { Text("OK") }
+            }
+        )
+    }
 
     // Dialog when update is available
     val availableInfo = (updateState as? AppUpdateState.Available)?.info
@@ -138,6 +177,63 @@ fun SettingsScreen(
                         labels = listOf("Every 1h", "Every 3h", "Every 6h", "Every 12h"),
                         onSelect = { viewModel.setUpdateInterval(it.toLong()) }
                     )
+                }
+            }
+
+            // Library backup
+            item {
+                SettingsSectionHeader("Library")
+
+                // Export
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = backupState !is BackupState.Exporting) {
+                            viewModel.exportLibrary()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Export Library", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Save favorites & reading progress to a file",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted
+                        )
+                    }
+                    if (backupState is BackupState.Exporting) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Primary, strokeWidth = 2.dp)
+                    } else {
+                        Text("Export", color = Primary, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+
+                // Import
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = backupState !is BackupState.Importing) {
+                            importLauncher.launch("application/json")
+                        }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Import Library", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Restore from a previous backup file",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted
+                        )
+                    }
+                    if (backupState is BackupState.Importing) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Primary, strokeWidth = 2.dp)
+                    } else {
+                        Text("Import", color = Primary, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
 
